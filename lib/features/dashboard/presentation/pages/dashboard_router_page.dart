@@ -8,7 +8,6 @@ import '../../../../core/config/theme/app_text_styles.dart';
 import '../../../../routing/route_names.dart';
 import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../qr_identity/presentation/pages/my_qr_page.dart';
 import 'admin_dashboard_page.dart';
 import 'control_chief_dashboard_page.dart';
 import 'guard_officer_dashboard_page.dart';
@@ -40,7 +39,7 @@ class DashboardRouterPage extends ConsumerWidget {
           AppRole.guardSubBrigadier ||
           AppRole.guardCadet =>
             const GateOpsDashboardPage(),
-          _ => const MyQrPage(),
+          AppRole.unknown => _UnknownRolePage(uid: user.uid),
         };
 
         return _EmergencyAlertWrapper(child: child);
@@ -259,7 +258,7 @@ class _UnknownRolePageState extends ConsumerState<_UnknownRolePage> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton.icon(
-                    onPressed: () => ref.read(signOutProvider)(),
+                    onPressed: () => ref.read(signOutProvider)(context),
                     icon: const Icon(Icons.logout_rounded),
                     label: const Text('CERRAR SESIÓN'),
                     style: ElevatedButton.styleFrom(

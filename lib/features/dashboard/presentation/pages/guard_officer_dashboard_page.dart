@@ -1,4 +1,5 @@
 // lib/features/dashboard/presentation/pages/guard_officer_dashboard_page.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,7 +18,7 @@ import '../widgets/tactical_app_bar.dart';
 
 /// Streams all access logs for the current shift (most recent first, limit 30).
 final _officerLogsStreamProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('access_logs')
       .orderBy('timestamp', descending: true)
@@ -27,7 +28,7 @@ final _officerLogsStreamProvider =
 
 /// Streams visitors currently marked as still inside the perimeter.
 final _visitorsInsideProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('visitors')
       .where('status', isEqualTo: 'inside')
@@ -36,7 +37,7 @@ final _visitorsInsideProvider =
 
 /// Streams all bitacora entries for the current shift (most recent first, limit 30).
 final _bitacoraStreamProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('novedades_bitacora')
       .orderBy('timestamp', descending: true)
@@ -50,11 +51,76 @@ final _bitacoraStreamProvider =
 ///
 /// Shows a shift summary card, live access-log feed, pending visitors list,
 /// and bottom action buttons for reports, handoff, and shift closure.
-class GuardOfficerDashboardPage extends ConsumerWidget {
+class GuardOfficerDashboardPage extends ConsumerStatefulWidget {
   const GuardOfficerDashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GuardOfficerDashboardPage> createState() =>
+      _GuardOfficerDashboardPageState();
+}
+
+class _GuardOfficerDashboardPageState
+    extends ConsumerState<GuardOfficerDashboardPage> {
+  Timer? _sentinelTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicia el temporizador centinela periódico para verificar cada 5 minutos
+    _sentinelTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      _checkSentinel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sentinelTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Verifica si han transcurrido más de 60 minutos sin novedades registradas.
+  /// En ese caso, registra un reporte automático de "Sin novedad".
+  Future<void> _checkSentinel() async {
+    final bitacoraState = ref.read(_bitacoraStreamProvider);
+    bitacoraState.whenData((snap) async {
+      final docs = snap.docs;
+      DateTime? lastReportTime;
+      if (docs.isNotEmpty) {
+        final ts = docs.first.data()['timestamp'] as Timestamp?;
+        lastReportTime = ts?.toDate();
+      }
+
+      final minutesSinceLastReport = lastReportTime != null
+          ? DateTime.now().difference(lastReportTime).inMinutes
+          : 999;
+
+      if (minutesSinceLastReport >= 60) {
+        final user = ref.read(currentUserProvider).valueOrNull;
+        final senderName = user != null ? user.displayName : 'Oficial de Guardia';
+        final senderRank = user != null ? user.rank : '—';
+        final senderUid = user != null ? user.uid : '—';
+        final shiftId = 'GRD-${DateFormat('yyyyMMdd').format(DateTime.now())}-001';
+
+        try {
+          await FirebaseFirestore.instance.collection('novedades_bitacora').add({
+            'shift_id': shiftId,
+            'timestamp': FieldValue.serverTimestamp(),
+            'time_label': DateFormat('HH:mm').format(DateTime.now()),
+            'is_novedad': false,
+            'description': 'A la hora, el servicio de guardia se mantiene sin novedad en prevención y garitas. (Automático)',
+            'author_uid': senderUid,
+            'author_name': senderName,
+            'author_rank': senderRank,
+          });
+        } catch (_) {
+          // Falla silenciosamente en segundo plano
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final logsAsync = ref.watch(_officerLogsStreamProvider);
     final visitorsAsync = ref.watch(_visitorsInsideProvider);
@@ -89,9 +155,7 @@ class GuardOfficerDashboardPage extends ConsumerWidget {
           const SizedBox(width: 8),
           IconButton(
             onPressed: () async {
-              final signOut = ref.read(signOutProvider);
-              await signOut();
-              if (context.mounted) context.go(RouteNames.login);
+              await ref.read(signOutProvider)(context);
             },
             icon: const Icon(
               Icons.logout_rounded,

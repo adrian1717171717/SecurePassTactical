@@ -101,9 +101,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     ).timeout(const Duration(seconds: 7));
     
     final uid = credential.user!.uid;
+    final normalizedName = displayName.trim().toUpperCase();
     final newUser = UserModel(
       uid: uid,
-      displayName: displayName,
+      displayName: normalizedName,
       email: email,
       cedula: cedula,
       rank: rank,

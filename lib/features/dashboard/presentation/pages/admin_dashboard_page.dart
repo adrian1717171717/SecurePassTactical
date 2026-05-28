@@ -17,7 +17,7 @@ import '../widgets/tactical_app_bar.dart';
 
 /// Streams the latest 20 access-log documents ordered by timestamp desc.
 final _accessLogsStreamProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('access_logs')
       .orderBy('timestamp', descending: true)
@@ -107,9 +107,7 @@ class AdminDashboardPage extends ConsumerWidget {
               // Logout
               IconButton(
                 onPressed: () async {
-                  final signOut = ref.read(signOutProvider);
-                  await signOut();
-                  if (context.mounted) context.go(RouteNames.login);
+                  await ref.read(signOutProvider)(context);
                 },
                 icon: const Icon(
                   Icons.logout_rounded,

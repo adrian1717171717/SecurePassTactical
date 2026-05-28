@@ -16,7 +16,7 @@ import '../widgets/tactical_app_bar.dart';
 
 /// Streams all access logs from today (for analytics derivation).
 final _controlLogsStreamProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   // Compute the start of today in UTC for the Firestore query.
   final todayStart = DateTime.now();
   final start = DateTime(todayStart.year, todayStart.month, todayStart.day);
@@ -30,7 +30,7 @@ final _controlLogsStreamProvider =
 
 /// Streams visitors currently marked as inside the perimeter.
 final _controlVisitorsInsideProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('visitors')
       .where('status', isEqualTo: 'inside')

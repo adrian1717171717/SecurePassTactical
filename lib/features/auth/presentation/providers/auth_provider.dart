@@ -1,7 +1,10 @@
 // lib/features/auth/presentation/providers/auth_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../routing/route_names.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../domain/entities/user_entity.dart';
 
@@ -69,8 +72,20 @@ final recoverPasswordProvider = Provider<Future<void> Function(String)>((ref) {
 });
 
 // ── Acción: Logout ────────────────────────────────────────
-final signOutProvider = Provider<Future<void> Function()>((ref) {
-  return () async {
+final signOutProvider = Provider<Future<void> Function(BuildContext)>((ref) {
+  return (context) async {
+    // 1. Redireccionar de inmediato a la pantalla de login para desmontar
+    // los dashboards y gatillar la cancelación automática de los streams.
+    context.go(RouteNames.login);
+
+    // 2. Pausar brevemente para permitir la transición y desmonte seguro
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    // 3. Invalidar el stream del usuario en Riverpod para forzar reinicio del estado
+    ref.invalidate(currentUserProvider);
+
+    // 4. Firmar la salida en Firebase Auth
     await ref.read(authRemoteDataSourceProvider).signOut();
   };
 });
+

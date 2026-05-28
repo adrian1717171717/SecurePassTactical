@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
 import '../../../../core/utils/qr_token_generator.dart';
-import '../../../../routing/route_names.dart';
 import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -262,10 +260,8 @@ class _HandoffPageState extends ConsumerState<HandoffPage> {
           ),
         );
 
-        // Signout and route back to login
-        final signOut = ref.read(signOutProvider);
-        await signOut();
-        if (mounted) context.go(RouteNames.login);
+        // Signout and route back to login cleanly
+        await ref.read(signOutProvider)(context);
       }
     } catch (e) {
       if (mounted) {

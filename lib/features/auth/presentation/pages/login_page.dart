@@ -130,7 +130,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       await signUp(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-        displayName: _nameCtrl.text.trim(),
+        displayName: _nameCtrl.text.trim().toUpperCase(),
         cedula: _cedulaCtrl.text.trim(),
         rank: finalRank.isEmpty ? 'Cadete' : finalRank,
         phone: _phoneCtrl.text.trim(),
@@ -405,9 +405,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               TextFormField(
                 controller: _nameCtrl,
                 style: AppTextStyles.bodyLarge,
-                textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
-                  labelText: 'Nombres completos',
+                  labelText: 'NOMBRES COMPLETOS (APELLIDOS NOMBRES)',
+                  hintText: 'Ej. MORALES ADRIÁN',
+                  helperText: 'Registre sus Apellidos y Nombres en mayúsculas',
                   prefixIcon: Icon(Icons.person_outline_rounded,
                       color: AppColors.textMuted),
                 ),

@@ -17,7 +17,7 @@ import '../widgets/tactical_app_bar.dart';
 
 /// Streams the latest 10 access-log entries for the gate compact list.
 final _gateLogsStreamProvider =
-    StreamProvider<QuerySnapshot<Map<String, dynamic>>>((ref) {
+    StreamProvider.autoDispose<QuerySnapshot<Map<String, dynamic>>>((ref) {
   return FirebaseFirestore.instance
       .collection('access_logs')
       .orderBy('timestamp', descending: true)

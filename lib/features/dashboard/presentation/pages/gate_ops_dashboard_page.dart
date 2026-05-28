@@ -108,7 +108,12 @@ class _GateOpsDashboardPageState extends ConsumerState<GateOpsDashboardPage> {
     final userAsync = ref.watch(currentUserProvider);
     final logsAsync = ref.watch(_gateLogsStreamProvider);
     final timeStr = DateFormat('HH:mm:ss').format(_now);
-    final dateStr = DateFormat('EEE d MMM', 'es').format(_now);
+    String dateStr;
+    try {
+      dateStr = DateFormat('EEE d MMM', 'es').format(_now);
+    } catch (_) {
+      dateStr = DateFormat('EEE d MMM').format(_now);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,

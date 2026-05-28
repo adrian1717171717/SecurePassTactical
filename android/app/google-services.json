@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "92615492487",
+    "firebase_url": "https://securpasstactical-default-rtdb.firebaseio.com",
+    "project_id": "securpasstactical",
+    "storage_bucket": "securpasstactical.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:92615492487:android:cf3fd938cd4531e4ab8922",
+        "android_client_info": {
+          "package_name": "com.securpass.securpass_tactical"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "92615492487-qdoffl08lufhb0i9e1v9om8t8qb2mgev.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwzIpzQpi49raUBSbwM6j3H35L7kNnyRM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "92615492487-qdoffl08lufhb0i9e1v9om8t8qb2mgev.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

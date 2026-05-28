@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // REGLAS TÁCTICAS DE PRUEBA (Colección completa y abierta para usuarios autenticados)
+    // Permite que cualquier usuario que haya iniciado sesión (Auth) lea, cree, actualice y elimine
+    // documentos en todas las colecciones (users, access_logs, alerts, metadata, vehicles, etc.)
+    // sin restricciones de roles o diferencias de campos.
+    
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

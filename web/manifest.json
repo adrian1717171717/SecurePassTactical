@@ -1,0 +1,46 @@
+{
+    "name": "SecurPass Tactical",
+    "short_name": "SecurPass",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0A0E14",
+    "theme_color": "#0A0E14",
+    "description": "Sistema Integral de Control de Accesos Vehiculares y Peatonales",
+    "orientation": "any",
+    "prefer_related_applications": false,
+    "categories": ["security", "utilities"],
+    "lang": "es",
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Escáner QR",
+            "short_name": "Escáner",
+            "description": "Acceso rápido al escáner de accesos",
+            "url": "/scanner",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        }
+    ]
+}

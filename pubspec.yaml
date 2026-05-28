@@ -1,0 +1,77 @@
+name: securpass_tactical
+description: "Sistema Integral de Control de Accesos Vehiculares y Peatonales"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ── Firebase ────────────────────────────────────────────
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.3
+  cloud_firestore: ^5.6.7
+  firebase_messaging: ^15.2.5
+
+  # ── Estado (Riverpod) ────────────────────────────────────
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # ── Navegación ───────────────────────────────────────────
+  go_router: ^14.8.1
+
+  # ── Escaneo ──────────────────────────────────────────────
+  mobile_scanner: ^5.2.3
+
+  # ── QR Generación ────────────────────────────────────────
+  qr_flutter: ^4.1.0
+
+  # ── PDF ──────────────────────────────────────────────────
+  pdf: ^3.11.2
+  printing: ^5.14.2
+
+  # ── Cache Offline ────────────────────────────────────────
+  hive_flutter: ^1.1.0
+
+  # ── Crypto (QR dinámico HMAC) ────────────────────────────
+  crypto: ^3.0.6
+
+  # ── Conectividad ─────────────────────────────────────────
+  connectivity_plus: ^6.1.4
+
+  # ── UI ───────────────────────────────────────────────────
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  flutter_animate: ^4.5.2
+  shimmer: ^3.0.0
+  lottie: ^3.3.1
+
+  # ── Utils ────────────────────────────────────────────────
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  share_plus: ^10.1.4
+  image_picker: ^1.1.2
+  permission_handler: ^11.4.0
+  url_launcher: ^6.3.1
+  equatable: ^2.0.7
+  dartz: ^0.10.1
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.5
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/lottie/
+

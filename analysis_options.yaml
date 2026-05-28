@@ -1,0 +1,19 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Suprimir infos que no son errores de producción
+    deprecated_member_use: ignore
+    unintended_html_in_doc_comment: ignore
+    prefer_const_constructors: ignore
+    prefer_const_literals_to_create_immutables: ignore
+    unnecessary_string_interpolations: ignore
+  exclude:
+    - lib/firebase_options.dart
+
+linter:
+  rules:
+    avoid_print: true
+    use_super_parameters: true
+    prefer_single_quotes: true
+    avoid_classes_with_only_static_members: false

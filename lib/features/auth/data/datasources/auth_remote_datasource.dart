@@ -15,6 +15,7 @@ abstract class AuthRemoteDataSource {
     required String cedula,
     required String rank,
     required String phone,
+    String unit = '',
   });
   Future<void> signOut();
   Future<void> updateFcmToken(String uid, String token);
@@ -94,6 +95,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String cedula,
     required String rank,
     required String phone,
+    String unit = '',
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -108,7 +110,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       email: email,
       cedula: cedula,
       rank: rank,
-      unit: '',
+      unit: unit,
       phone: phone,
       currentRole: AppRole.unknown,
       baseRole: AppRole.unknown,

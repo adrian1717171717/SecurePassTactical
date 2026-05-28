@@ -24,6 +24,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _phoneCtrl = TextEditingController();
   final _customRankCtrl = TextEditingController();
   String _selectedRank = 'Cadete';
+  String _selectedCompany = 'ICM';
   
   bool _isLoading = false;
   bool _obscure = true;
@@ -134,6 +135,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         cedula: _cedulaCtrl.text.trim(),
         rank: finalRank.isEmpty ? 'Cadete' : finalRank,
         phone: _phoneCtrl.text.trim(),
+        unit: _selectedRank == 'Cadete' ? _selectedCompany : '',
       );
       
       if (mounted) {
@@ -456,6 +458,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   }
                 },
               ),
+              
+              if (_selectedRank == 'Cadete') ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCompany,
+                  dropdownColor: AppColors.surface,
+                  style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Compañía',
+                    prefixIcon: Icon(Icons.group_work_outlined,
+                        color: AppColors.textMuted),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'ICM', child: Text('I Compañía de Milicias (ICM)')),
+                    DropdownMenuItem(value: 'IICM', child: Text('II Compañía de Milicias (IICM)')),
+                    DropdownMenuItem(value: 'IIICM', child: Text('III Compañía de Milicias (IIICM)')),
+                    DropdownMenuItem(value: 'IVCM', child: Text('IV Compañía de Milicias (IVCM)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedCompany = val);
+                    }
+                  },
+                ),
+              ],
               
               if (_selectedRank == 'Otro') ...[
                 const SizedBox(height: 16),

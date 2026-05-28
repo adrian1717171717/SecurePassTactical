@@ -44,6 +44,7 @@ final signUpProvider = Provider<
   required String cedula,
   required String rank,
   required String phone,
+  String unit,
 })>((ref) {
   return ({
     required email,
@@ -52,6 +53,7 @@ final signUpProvider = Provider<
     required cedula,
     required rank,
     required phone,
+    String unit = '',
   }) async {
     await ref.read(authRemoteDataSourceProvider).signUpWithEmailAndPassword(
           email: email,
@@ -60,6 +62,7 @@ final signUpProvider = Provider<
           cedula: cedula,
           rank: rank,
           phone: phone,
+          unit: unit,
         );
   };
 });

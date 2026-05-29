@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
+import '../../../../core/services/stats_service.dart';
 import '../../../../routing/route_names.dart';
 import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -82,7 +83,7 @@ class AdminDashboardPage extends ConsumerWidget {
                   color: AppColors.primary,
                   size: 22,
                 ),
-                tooltip: 'Probar Escáner',
+                tooltip: 'Escáner de Acceso',
               ),
               const SizedBox(width: 8),
               // User name chip
@@ -270,88 +271,75 @@ class _AdminBody extends ConsumerWidget {
 class _StatsGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final logsAsync = ref.watch(_accessLogsStreamProvider);
+    final statsAsync = ref.watch(dailyStatsProvider);
 
-    // Derive counts from the live stream
-    int vehicles = 0;
-    int people = 0;
-    int visitors = 0;
-    int alerts = 0;
+    return statsAsync.when(
+      loading: () => const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (e, _) => Text('Error: $e', style: AppTextStyles.bodySmall),
+      data: (stats) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final cardWidth = (constraints.maxWidth - 12 * 3) / 4;
+            final useGrid = cardWidth < 120;
 
-    logsAsync.whenData((snap) {
-      for (final doc in snap.docs) {
-        final d = doc.data();
-        final type = (d['event_type'] as String? ?? '').toLowerCase();
-        final result = (d['access_result'] as String? ?? '').toLowerCase();
-        if (type.contains('vehicular')) vehicles++;
-        if (type.contains('peatonal')) people++;
-        if (type.contains('visitante')) visitors++;
-        if (result == 'denied') alerts++;
-      }
-    });
+            final cards = [
+              StatCard(
+                label: 'Personas Dentro',
+                value: stats.peopleCurrentlyInside.toString(),
+                icon: Icons.people_alt_rounded,
+                color: AppColors.primary,
+              ),
+              StatCard(
+                label: 'Vehículos',
+                value: stats.uniqueVehicles.toString(),
+                icon: Icons.directions_car_rounded,
+                color: AppColors.statusGranted,
+              ),
+              StatCard(
+                label: 'Visitantes',
+                value: stats.uniqueVisitors.toString(),
+                icon: Icons.badge_rounded,
+                color: AppColors.statusPending,
+              ),
+              StatCard(
+                label: 'Movimientos',
+                value: stats.totalMovements.toString(),
+                icon: Icons.swap_vert_rounded,
+                color: AppColors.accent,
+              ),
+            ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = (constraints.maxWidth - 12 * 3) / 4;
-        final useGrid = cardWidth < 120;
+            if (useGrid) {
+              return GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.4,
+                children: cards,
+              );
+            }
 
-        if (useGrid) {
-          // 2-column grid on narrow screens
-          return GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.4,
-            children: _buildCards(vehicles, people, visitors, alerts),
-          );
-        }
-
-        return Row(
-          children: _buildCards(vehicles, people, visitors, alerts)
-              .map(
-                (card) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: card,
-                  ),
-                ),
-              )
-              .toList(),
+            return Row(
+              children: cards
+                  .map(
+                    (card) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: card,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
         );
       },
     );
-  }
-
-  List<Widget> _buildCards(
-      int vehicles, int people, int visitors, int alerts) {
-    return [
-      StatCard(
-        label: 'Vehículos Dentro',
-        value: vehicles.toString(),
-        icon: Icons.directions_car_rounded,
-        color: AppColors.statusGranted,
-      ),
-      StatCard(
-        label: 'Personas Dentro',
-        value: people.toString(),
-        icon: Icons.people_alt_rounded,
-        color: AppColors.primary,
-      ),
-      StatCard(
-        label: 'Visitantes',
-        value: visitors.toString(),
-        icon: Icons.badge_rounded,
-        color: AppColors.statusPending,
-      ),
-      StatCard(
-        label: 'Alertas Hoy',
-        value: alerts.toString(),
-        icon: Icons.warning_amber_rounded,
-        color: AppColors.alertRed,
-      ),
-    ];
   }
 }
 

@@ -1,15 +1,13 @@
 // lib/features/qr_identity/presentation/pages/my_qr_page.dart
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/qr_token_generator.dart';
-import '../../../../routing/route_names.dart';
 import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
@@ -22,11 +20,24 @@ class MyQrPage extends ConsumerStatefulWidget {
 
 class _MyQrPageState extends ConsumerState<MyQrPage> {
   String _qrData = '';
+  Timer? _rotationTimer;
+  int _secondsUntilRefresh = AppConfig.qrRotationSeconds;
 
   @override
   void initState() {
     super.initState();
     _generateQr();
+    // Auto-rotate QR every qrRotationSeconds
+    _rotationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _secondsUntilRefresh--;
+        if (_secondsUntilRefresh <= 0) {
+          _generateQr();
+          _secondsUntilRefresh = AppConfig.qrRotationSeconds;
+        }
+      });
+    });
   }
 
   void _generateQr() {
@@ -37,6 +48,7 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
 
   @override
   void dispose() {
+    _rotationTimer?.cancel();
     super.dispose();
   }
 
@@ -100,6 +112,13 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                     ],
                   ],
                 ),
+                const SizedBox(height: 6),
+                // Year level and unit for cadets
+                if (user.yearLevel != null && user.yearLevel!.isNotEmpty)
+                  Text(
+                    '${user.yearLevel} · ${user.unit}',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                  ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -158,8 +177,40 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                   .fadeIn(duration: 300.ms)
                   .scale(begin: const Offset(0.95, 0.95)),
 
-              const SizedBox(height: 24),
- 
+              const SizedBox(height: 16),
+
+              // ── Rotation Timer ─────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.surfaceBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh_rounded,
+                        size: 14,
+                        color: _secondsUntilRefresh <= 10
+                            ? AppColors.statusPending
+                            : AppColors.textMuted),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Renovación en ${_secondsUntilRefresh}s',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: _secondsUntilRefresh <= 10
+                            ? AppColors.statusPending
+                            : AppColors.textMuted,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
               // ── Credencial Diaria Válida ──────────────────
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -175,7 +226,7 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                         color: AppColors.statusGranted, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'CREDENCIAL DIARIA ACTIVA',
+                      'CREDENCIAL ACTIVA',
                       style: AppTextStyles.labelMedium.copyWith(
                         color: AppColors.statusGranted,
                         letterSpacing: 1.5,
@@ -185,7 +236,7 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                   ],
                 ),
               ),
- 
+
               const SizedBox(height: 28),
 
               // ── Instrucciones ─────────────────────────
@@ -212,7 +263,7 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                     const SizedBox(height: 8),
                     Text(
                       '• Presente este QR al Brigadier o Cadete de Guardia\n'
-                      '• El código es una credencial diaria y se renueva automáticamente cada 24 horas\n'
+                      '• El código se renueva automáticamente cada ${AppConfig.qrRotationSeconds} segundos\n'
                       '• Funciona sin conexión a internet\n'
                       '• No comparta una captura de pantalla — no será válida',
                       style: AppTextStyles.bodySmall.copyWith(height: 1.8),
@@ -221,142 +272,10 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              // Dev simulator launcher (Visible only when QR Page is the root dashboard view in development)
-              if (!Navigator.of(context).canPop()) ...[
-                TextButton.icon(
-                  onPressed: () => _showDevRoleSelectionBottomSheet(context),
-                  icon: const Icon(Icons.developer_mode_rounded, size: 14, color: AppColors.textMuted),
-                  label: Text(
-                    'SIMULADOR DE ROLES (ENTORNO DE PRUEBAS)',
-                    style: AppTextStyles.buttonSecondary.copyWith(
-                      fontSize: 10,
-                      letterSpacing: 1.0,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _showDevRoleSelectionBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        side: BorderSide(color: AppColors.surfaceBorder),
-      ),
-      builder: (context) {
-        final uid = ref.read(currentUserProvider).valueOrNull?.uid ?? '';
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceBorder,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'SIMULADOR DE ROLES DE SEGURIDAD',
-                style: AppTextStyles.labelMedium.copyWith(
-                  color: AppColors.primary,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Seleccione un perfil para simular en esta sesión:',
-                style: AppTextStyles.bodySmall,
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGlow,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.primaryLight, size: 20),
-                ),
-                title: Text('Director / Mando (Total)', style: AppTextStyles.bodyLarge.copyWith(color: Colors.white)),
-                subtitle: Text('General de Brigada · Dirección', style: AppTextStyles.bodySmall),
-                onTap: () => _assignRole(uid, AppRole.director, 'Gral. Adrián Morales', 'General de Brigada'),
-              ),
-              const Divider(color: AppColors.surfaceBorder, height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.statusPending.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.security_rounded, color: AppColors.statusPending, size: 20),
-                ),
-                title: Text('Oficial de Guardia', style: AppTextStyles.bodyLarge.copyWith(color: Colors.white)),
-                subtitle: Text('Capitán de Infantería · Control Diario', style: AppTextStyles.bodySmall),
-                onTap: () => _assignRole(uid, AppRole.guardOfficer, 'Cap. Adrián Morales', 'Capitán de Infantería'),
-              ),
-              const Divider(color: AppColors.surfaceBorder, height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.statusGranted.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.statusGranted, size: 20),
-                ),
-                title: Text('Brigadier de Guardia (Garita)', style: AppTextStyles.bodyLarge.copyWith(color: Colors.white)),
-                subtitle: Text('Brigadier de Guardia · Control de Accesos', style: AppTextStyles.bodySmall),
-                onTap: () => _assignRole(uid, AppRole.guardBrigadier, 'Brig. Adrián Morales', 'Brigadier de Guardia'),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _assignRole(String uid, AppRole role, String name, String rank) async {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Cargando entorno simulado...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'current_role': role.toFirestoreString(),
-        'base_role': role.toFirestoreString(),
-        'display_name': name,
-        'rank': rank,
-        'updated_at': Timestamp.now(),
-      });
-      if (mounted) {
-        context.go(RouteNames.dashboard);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al asignar rol: $e')),
-        );
-      }
-    }
   }
 }

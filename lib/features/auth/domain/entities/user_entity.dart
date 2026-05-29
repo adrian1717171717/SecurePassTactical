@@ -11,6 +11,7 @@ class UserEntity extends Equatable {
   final String rank;
   final String unit;
   final String? phone;
+  final String? yearLevel; // Año o nivel para cadetes (1ro, 2do, 3ro, 4to)
 
   final AppRole currentRole;
   final AppRole baseRole;
@@ -34,6 +35,7 @@ class UserEntity extends Equatable {
     required this.rank,
     required this.unit,
     this.phone,
+    this.yearLevel,
     required this.currentRole,
     required this.baseRole,
     this.roleAssignedAt,
@@ -55,6 +57,7 @@ class UserEntity extends Equatable {
     String? rank,
     String? unit,
     String? phone,
+    String? yearLevel,
     AppRole? currentRole,
     AppRole? baseRole,
     DateTime? roleAssignedAt,
@@ -75,6 +78,7 @@ class UserEntity extends Equatable {
       rank: rank ?? this.rank,
       unit: unit ?? this.unit,
       phone: phone ?? this.phone,
+      yearLevel: yearLevel ?? this.yearLevel,
       currentRole: currentRole ?? this.currentRole,
       baseRole: baseRole ?? this.baseRole,
       roleAssignedAt: roleAssignedAt ?? this.roleAssignedAt,
@@ -89,5 +93,5 @@ class UserEntity extends Equatable {
   }
 
   @override
-  List<Object?> get props => [uid, currentRole, isActive];
+  List<Object?> get props => [uid, currentRole, isActive, movementState, updatedAt];
 }

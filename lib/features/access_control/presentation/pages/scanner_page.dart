@@ -7,6 +7,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
 import '../../../../core/utils/qr_token_generator.dart';
+import '../../../../core/services/audit_service.dart';
+import '../../../auth/domain/entities/app_role.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Resultado visual del escaneo
 enum _ScanResult { idle, granted, denied, pending }
@@ -37,9 +40,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
   @override
   void initState() {
     super.initState();
-    // Leer el modo de la ruta (si viene con ?mode=exit)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // El modo puede provenir de GoRouter extra — por ahora default entry
       setState(() => _mode = 'entry');
     });
   }
@@ -65,11 +66,20 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
       _lastScanned = raw;
     });
 
+    // Obtener datos del operador (quien escanea)
+    final operator = ref.read(currentUserProvider).valueOrNull;
+    final operatorUid = operator?.uid ?? '';
+    final operatorName = operator?.displayName ?? 'Operador';
+    final operatorRole = operator?.currentRole.toFirestoreString() ?? 'unknown';
+
     try {
       String personName = 'Usuario Desconocido';
       String personRank = 'Código QR';
       String eventType = _mode == 'entry' ? 'Ingreso Peatonal' : 'Salida Peatonal';
       String? vehiclePlate;
+      String? scannedUid;
+      String? scannedCedula;
+      String? scannedUnit;
       bool isValid = false;
       String? errorMessage;
       String? matchedUid;
@@ -88,16 +98,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
             }
           }
         }
-      } 
+      }
       // 2. Validar como QR de vehículo
       else if (raw.startsWith('VH:')) {
         final plate = raw.substring(3).trim().toUpperCase();
-        isValid = true; // Por pruebas se autorizan los vehículos registrados
+        isValid = true;
         personName = 'Vehículo Registrado';
         personRank = 'Sticker QR';
         eventType = _mode == 'entry' ? 'Ingreso Vehicular' : 'Salida Vehicular';
         vehiclePlate = plate;
-      } 
+      }
       // 3. Validar como cédula QR u otro
       else {
         isValid = raw.length >= 6;
@@ -117,6 +127,9 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
           final d = userDoc.data()!;
           personName = d['display_name'] ?? 'Desconocido';
           personRank = d['rank'] ?? '—';
+          scannedUid = matchedUid;
+          scannedCedula = d['cedula'] as String?;
+          scannedUnit = d['unit'] as String?;
           final movementState = d['movement_state'] ?? 'AFUERA';
 
           if (_mode == 'entry' && movementState == 'ADENTRO') {
@@ -152,12 +165,30 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         }
       });
 
-      // Guardar log en Firestore
+      // Guardar log en Firestore con datos completos de trazabilidad
       await _logAccess(
         personName: personName,
         rank: personRank,
         eventType: eventType,
         accessResult: accessResult,
+        vehiclePlate: vehiclePlate,
+        uid: scannedUid,
+        cedula: scannedCedula,
+        unit: scannedUnit,
+        operatorUid: operatorUid,
+        operatorName: operatorName,
+        operatorRole: operatorRole,
+      );
+
+      // Registrar auditoría
+      AuditService.logAccessScan(
+        operatorUid: operatorUid,
+        operatorName: operatorName,
+        operatorRole: operatorRole,
+        scannedUid: scannedUid ?? 'external',
+        scannedName: personName,
+        eventType: eventType,
+        result: accessResult,
         vehiclePlate: vehiclePlate,
       );
 
@@ -187,6 +218,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
     required String eventType,
     required String accessResult,
     String? vehiclePlate,
+    String? uid,
+    String? cedula,
+    String? unit,
+    required String operatorUid,
+    required String operatorName,
+    required String operatorRole,
   }) async {
     try {
       await FirebaseFirestore.instance.collection('access_logs').add({
@@ -196,6 +233,12 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         'timestamp': FieldValue.serverTimestamp(),
         'access_result': accessResult,
         if (vehiclePlate != null) 'vehicle_plate': vehiclePlate,
+        if (uid != null) 'uid': uid,
+        if (cedula != null) 'cedula': cedula,
+        if (unit != null) 'unit': unit,
+        'operator_uid': operatorUid,
+        'operator_name': operatorName,
+        'operator_role': operatorRole,
       });
     } catch (e) {
       debugPrint('Error al guardar log de acceso: $e');
@@ -551,12 +594,16 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
             }
           });
 
+          final op = ref.read(currentUserProvider).valueOrNull;
           await _logAccess(
             personName: personName,
             rank: rank,
             eventType: eventType,
             accessResult: accessResult,
             vehiclePlate: isPlate ? value : null,
+            operatorUid: op?.uid ?? '',
+            operatorName: op?.displayName ?? 'Operador',
+            operatorRole: op?.currentRole.toFirestoreString() ?? 'unknown',
           );
 
           _resetTimer = Timer(const Duration(milliseconds: 2500), () {

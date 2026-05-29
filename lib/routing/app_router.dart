@@ -11,6 +11,9 @@ import '../features/qr_identity/presentation/pages/my_qr_page.dart';
 import '../features/alerts/presentation/pages/alerts_inbox_page.dart';
 import '../features/guard_shift/presentation/pages/handoff_page.dart';
 import '../features/guard_shift/presentation/pages/shift_summary_page.dart';
+import '../features/dashboard/presentation/pages/admin_users_page.dart';
+import '../features/profile/presentation/pages/profile_page.dart';
+import '../features/vehicles/presentation/pages/vehicles_page.dart';
 import 'route_names.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -49,8 +52,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const ScannerPage(),
         redirect: (context, state) {
           final role = userAsync.valueOrNull?.currentRole;
-          if (role == null || 
-              !(role.canScanAccess || role.isHighCommand || role == AppRole.guardOfficer)) {
+          if (role == null || !role.canScanAccess) {
             return RouteNames.dashboard;
           }
           return null;
@@ -64,6 +66,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const MyQrPage(),
       ),
 
+      // ── Perfil ─────────────────────────────────────────
+      GoRoute(
+        path: RouteNames.profile,
+        name: 'profile',
+        builder: (_, __) => const ProfilePage(),
+      ),
+
+      // ── Vehículos ──────────────────────────────────────
+      GoRoute(
+        path: RouteNames.vehicles,
+        name: 'vehicles',
+        builder: (_, __) => const VehiclesPage(),
+      ),
+
       // ── Relevo de Guardia ──────────────────────────────
       GoRoute(
         path: RouteNames.shiftHandoff,
@@ -71,7 +87,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const HandoffPage(),
         redirect: (context, state) {
           final role = userAsync.valueOrNull?.currentRole;
-          if (role == null || role != AppRole.guardOfficer) {
+          if (role == null || !role.canHandoffRole) {
             return RouteNames.dashboard;
           }
           return null;
@@ -85,7 +101,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const ShiftSummaryPage(),
         redirect: (context, state) {
           final role = userAsync.valueOrNull?.currentRole;
-          if (role == null || role != AppRole.guardOfficer) {
+          if (role == null || !role.canCloseShift) {
             return RouteNames.dashboard;
           }
           return null;
@@ -99,7 +115,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const AlertsInboxPage(),
         redirect: (context, state) {
           final role = userAsync.valueOrNull?.currentRole;
-          if (role == null || !role.receivesVipAlerts) {
+          if (role == null || (!role.receivesAlerts && !role.canSendAlert)) {
+            return RouteNames.dashboard;
+          }
+          return null;
+        },
+      ),
+
+      // ── Admin: Usuarios ────────────────────────────────
+      GoRoute(
+        path: RouteNames.adminUsers,
+        name: 'adminUsers',
+        builder: (_, __) => const AdminUsersPage(),
+        redirect: (context, state) {
+          final role = userAsync.valueOrNull?.currentRole;
+          if (role == null || !role.canManageUsers) {
             return RouteNames.dashboard;
           }
           return null;

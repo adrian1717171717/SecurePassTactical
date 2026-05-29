@@ -13,6 +13,7 @@ class UserModel extends UserEntity {
     required super.rank,
     required super.unit,
     super.phone,
+    super.yearLevel,
     required super.currentRole,
     required super.baseRole,
     super.roleAssignedAt,
@@ -36,6 +37,7 @@ class UserModel extends UserEntity {
       rank: data['rank'] ?? '',
       unit: data['unit'] ?? '',
       phone: data['phone'],
+      yearLevel: data['year_level'],
       currentRole: AppRoleExtension.fromString(data['current_role'] ?? ''),
       baseRole: AppRoleExtension.fromString(data['base_role'] ?? ''),
       roleAssignedAt: (data['role_assigned_at'] as Timestamp?)?.toDate(),
@@ -59,6 +61,7 @@ class UserModel extends UserEntity {
       'rank': rank,
       'unit': unit,
       'phone': phone,
+      'year_level': yearLevel,
       'current_role': currentRole.toFirestoreString(),
       'base_role': baseRole.toFirestoreString(),
       'role_assigned_at':

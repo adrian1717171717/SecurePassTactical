@@ -1,78 +1,140 @@
 // lib/features/auth/domain/entities/role_permissions.dart
 import 'app_role.dart';
 
-/// Niveles de la jerarquía de seguridad e institucional de SecurPass Tactical.
-/// Define una estructura de 5 niveles de privilegios y accesos.
+/// Niveles jerárquicos de seguridad del sistema SecurPass Tactical.
+/// Define una estructura de 6 niveles de privilegios y accesos.
 enum SecurityLevel {
-  /// Nivel 1: Director / Subdirector / Jefe de Escuela (Acceso total, gestión de roles, alertas VIP globales).
-  level1Admin,
+  /// Nivel 1: Director / Subdirector — Acceso total, gestión de roles, alertas, aprobación vehículos.
+  level1HighCommand,
 
-  /// Nivel 2: Jefe de Control (Estadísticas y reportes de solo lectura).
-  level2ControlChief,
+  /// Nivel 2: Comandante de Batallón / Compañía — Alertas, vistas filtradas por ámbito.
+  level2MidCommand,
 
-  /// Nivel 3: Oficial de Guardia (Gestión de Libro de Imaginaria, relevo y cierre de guardia).
-  level3GuardOfficer,
+  /// Nivel 3: Roles operativos rotativos con panel — Jefe de Escuela, Jefe de Control, Oficial de Semana, Oficial de Guardia, Oficial Ranchero.
+  level3OperationalCommand,
 
-  /// Nivel 4: Brigadier / Subbrigadier / Cadete de Guardia (Operadores de escáner en garita y alertas VIP).
+  /// Nivel 4: Operadores de garita — Brigadier, Subbrigadier, Cadete de Guardia, Dispositivo de Prevención.
   level4GateOperator,
 
-  /// Nivel 5: Personal General (Visualización de QR propio, autogestión de perfil y vehículos).
-  level5General,
+  /// Nivel 5: Personal base — Cadete, Voluntario, Servidor Público, Oficial base, Civil.
+  level5BaseUser,
+
+  /// Nivel 6: Sin rol asignado — Pendiente de aprobación.
+  level6Unassigned,
 }
 
-/// Extensión para mapear cada miembro de [AppRole] a su nivel jerárquico e institucional.
+/// Extensión para mapear cada miembro de [AppRole] a su nivel jerárquico.
 extension AppRoleSecurity on AppRole {
   /// Obtiene el nivel de seguridad jerárquico asociado a este rol.
   SecurityLevel get securityLevel {
     return switch (this) {
       AppRole.director ||
-      AppRole.subDirector ||
-      AppRole.schoolChief =>
-        SecurityLevel.level1Admin,
-      AppRole.controlChief => SecurityLevel.level2ControlChief,
-      AppRole.guardOfficer => SecurityLevel.level3GuardOfficer,
+      AppRole.subDirector =>
+        SecurityLevel.level1HighCommand,
+      AppRole.battalionCommander ||
+      AppRole.companyCommander =>
+        SecurityLevel.level2MidCommand,
+      AppRole.schoolChief ||
+      AppRole.controlChief ||
+      AppRole.weekOfficer ||
+      AppRole.guardOfficer ||
+      AppRole.kitchenOfficer =>
+        SecurityLevel.level3OperationalCommand,
       AppRole.guardBrigadier ||
       AppRole.guardSubBrigadier ||
-      AppRole.guardCadet =>
+      AppRole.guardCadet ||
+      AppRole.preventionDevice =>
         SecurityLevel.level4GateOperator,
-      AppRole.unknown => SecurityLevel.level5General,
+      AppRole.cadet ||
+      AppRole.volunteer ||
+      AppRole.civilServant ||
+      AppRole.officer ||
+      AppRole.civilian =>
+        SecurityLevel.level5BaseUser,
+      AppRole.unknown => SecurityLevel.level6Unassigned,
     };
   }
 
-  /// Obtiene el nivel jerárquico numérico (1 = más alto, 5 = más bajo).
+  /// Obtiene el nivel jerárquico numérico (1 = más alto, 6 = más bajo).
   int get hierarchyValue {
     return switch (securityLevel) {
-      SecurityLevel.level1Admin => 1,
-      SecurityLevel.level2ControlChief => 2,
-      SecurityLevel.level3GuardOfficer => 3,
+      SecurityLevel.level1HighCommand => 1,
+      SecurityLevel.level2MidCommand => 2,
+      SecurityLevel.level3OperationalCommand => 3,
       SecurityLevel.level4GateOperator => 4,
-      SecurityLevel.level5General => 5,
+      SecurityLevel.level5BaseUser => 5,
+      SecurityLevel.level6Unassigned => 6,
     };
   }
 
-  /// Indica si el rol tiene privilegios administrativos completos (e.g., asignar roles).
-  bool get canManageRoles => securityLevel == SecurityLevel.level1Admin;
-
-  /// Indica si tiene acceso de visualización y exportación de analíticas estadísticas.
+  /// Indica si tiene acceso de visualización y exportación de analíticas.
   bool get canViewAnalytics => [
-        SecurityLevel.level1Admin,
-        SecurityLevel.level2ControlChief,
+        SecurityLevel.level1HighCommand,
+        SecurityLevel.level2MidCommand,
+        SecurityLevel.level3OperationalCommand,
       ].contains(securityLevel);
 
   /// Indica si tiene acceso de lectura/escritura en el Libro de Imaginaria (Bitácora).
   bool get canManageBitacora => [
-        SecurityLevel.level1Admin,
-        SecurityLevel.level3GuardOfficer,
+        SecurityLevel.level1HighCommand,
+        SecurityLevel.level3OperationalCommand,
       ].contains(securityLevel);
 
-  /// Indica si es operador activo en garita con permisos para escanear y registrar.
-  bool get canScanAccessOperations => securityLevel == SecurityLevel.level4GateOperator;
+  /// Indica si es operador activo en garita con permisos para escanear.
+  bool get canScanAccessOperations =>
+      securityLevel == SecurityLevel.level4GateOperator ||
+      this == AppRole.guardOfficer ||
+      this == AppRole.schoolChief ||
+      this == AppRole.weekOfficer;
 
   /// Indica si el rol pertenece al nivel más básico de autogestión (QR e identidad).
-  bool get isBaseGeneralUser => securityLevel == SecurityLevel.level5General;
+  bool get isBaseGeneralUser =>
+      securityLevel == SecurityLevel.level5BaseUser ||
+      securityLevel == SecurityLevel.level6Unassigned;
 
   /// Compara el nivel jerárquico. Retorna `true` si este rol es superior o igual en jerarquía a [other].
   bool isSuperiorOrEqual(AppRole other) {
     return hierarchyValue <= other.hierarchyValue;
   }
+
+  /// Qué tipo de dashboard debe ver este rol.
+  DashboardType get dashboardType {
+    return switch (this) {
+      AppRole.director ||
+      AppRole.subDirector =>
+        DashboardType.admin,
+      AppRole.battalionCommander ||
+      AppRole.companyCommander =>
+        DashboardType.admin,
+      AppRole.schoolChief ||
+      AppRole.weekOfficer =>
+        DashboardType.guardOfficer,
+      AppRole.controlChief => DashboardType.controlChief,
+      AppRole.guardOfficer => DashboardType.guardOfficer,
+      AppRole.kitchenOfficer => DashboardType.baseUser,
+      AppRole.guardBrigadier ||
+      AppRole.guardSubBrigadier ||
+      AppRole.guardCadet =>
+        DashboardType.gateOps,
+      AppRole.preventionDevice => DashboardType.preventionDevice,
+      AppRole.cadet ||
+      AppRole.volunteer ||
+      AppRole.civilServant ||
+      AppRole.officer ||
+      AppRole.civilian =>
+        DashboardType.baseUser,
+      AppRole.unknown => DashboardType.unassigned,
+    };
+  }
+}
+
+/// Tipos de dashboard disponibles en el sistema.
+enum DashboardType {
+  admin,
+  controlChief,
+  guardOfficer,
+  gateOps,
+  preventionDevice,
+  baseUser,
+  unassigned,
 }

@@ -45,6 +45,7 @@ final signUpProvider = Provider<
   required String rank,
   required String phone,
   String unit,
+  String? yearLevel,
 })>((ref) {
   return ({
     required email,
@@ -54,6 +55,7 @@ final signUpProvider = Provider<
     required rank,
     required phone,
     String unit = '',
+    String? yearLevel,
   }) async {
     await ref.read(authRemoteDataSourceProvider).signUpWithEmailAndPassword(
           email: email,
@@ -63,6 +65,7 @@ final signUpProvider = Provider<
           rank: rank,
           phone: phone,
           unit: unit,
+          yearLevel: yearLevel,
         );
   };
 });
@@ -91,4 +94,3 @@ final signOutProvider = Provider<Future<void> Function(BuildContext)>((ref) {
     await ref.read(authRemoteDataSourceProvider).signOut();
   };
 });
-

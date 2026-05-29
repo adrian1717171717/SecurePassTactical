@@ -25,6 +25,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _customRankCtrl = TextEditingController();
   String _selectedRank = 'Cadete';
   String _selectedCompany = 'ICM';
+  String _selectedYear = '1er Año';
   
   bool _isLoading = false;
   bool _obscure = true;
@@ -46,7 +47,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   String _getFriendlyErrorMessage(Object error) {
     final str = error.toString();
     if (str.contains('user-not-found')) {
-      return '✗ USUARIO NO REGISTRADO — Active el modo de pruebas abajo y regístrese.';
+      return '✗ USUARIO NO REGISTRADO — Regístrese con el botón inferior.';
     }
     if (str.contains('wrong-password') || str.contains('invalid-credential') || str.contains('invalid-email')) {
       return '✗ CREDENCIALES INCORRECTAS — Correo o contraseña inválida.';
@@ -136,6 +137,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         rank: finalRank.isEmpty ? 'Cadete' : finalRank,
         phone: _phoneCtrl.text.trim(),
         unit: _selectedRank == 'Cadete' ? _selectedCompany : '',
+        yearLevel: _selectedRank == 'Cadete' ? _selectedYear : null,
       );
       
       if (mounted) {
@@ -335,7 +337,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               color: AppColors.primary,
             )),
             const SizedBox(height: 4),
-            Text(_isRegistering ? 'Registre un nuevo correo para pruebas' : 'Ingrese sus credenciales institucionales',
+            Text(_isRegistering ? 'Complete sus datos para crear su cuenta institucional' : 'Ingrese sus credenciales institucionales',
                 style: AppTextStyles.bodySmall),
             const SizedBox(height: 28),
 
@@ -482,6 +484,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     }
                   },
                 ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedYear,
+                  dropdownColor: AppColors.surface,
+                  style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Año / Nivel',
+                    prefixIcon: Icon(Icons.school_outlined,
+                        color: AppColors.textMuted),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '1er Año', child: Text('1er Año')),
+                    DropdownMenuItem(value: '2do Año', child: Text('2do Año')),
+                    DropdownMenuItem(value: '3er Año', child: Text('3er Año')),
+                    DropdownMenuItem(value: '4to Año', child: Text('4to Año')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedYear = val);
+                    }
+                  },
+                ),
               ],
               
               if (_selectedRank == 'Otro') ...[
@@ -598,7 +622,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: Text(
                 _isRegistering
                     ? '¿YA TIENE CUENTA? INICIAR SESIÓN'
-                    : '¿NO TIENE CUENTA? REGÍSTRESE AQUÍ (MODO PRUEBAS)',
+                    : '¿NO TIENE CUENTA? REGÍSTRESE AQUÍ',
                 style: AppTextStyles.buttonSecondary.copyWith(
                   fontSize: 11,
                   letterSpacing: 1.0,

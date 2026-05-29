@@ -401,7 +401,7 @@ class _GuardOfficerDashboardPageState
 
           // ── Bottom action row ──────────────────────────────
           _BottomActionRow(
-            onReports: () => context.push(RouteNames.shiftReport),
+            onReports: () => context.push(RouteNames.shiftSummary),
             onHandoff: () => context.push(RouteNames.shiftHandoff),
             onClose: () => _showCloseShiftDialog(context, ref),
           ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1, end: 0),

@@ -16,6 +16,7 @@ abstract class AuthRemoteDataSource {
     required String rank,
     required String phone,
     String unit = '',
+    String? yearLevel,
   });
   Future<void> signOut();
   Future<void> updateFcmToken(String uid, String token);
@@ -96,6 +97,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String rank,
     required String phone,
     String unit = '',
+    String? yearLevel,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -104,6 +106,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     
     final uid = credential.user!.uid;
     final normalizedName = displayName.trim().toUpperCase();
+
+    // Determine base role from rank
+    AppRole baseRole = AppRole.unknown;
+    final lowerRank = rank.toLowerCase();
+    if (lowerRank.contains('cadete')) {
+      baseRole = AppRole.cadet;
+    } else if (lowerRank.contains('voluntario')) {
+      baseRole = AppRole.volunteer;
+    } else if (lowerRank.contains('servidor') || lowerRank.contains('público')) {
+      baseRole = AppRole.civilServant;
+    } else if (lowerRank.contains('oficial')) {
+      baseRole = AppRole.officer;
+    } else if (lowerRank.contains('civil')) {
+      baseRole = AppRole.civilian;
+    }
+
     final newUser = UserModel(
       uid: uid,
       displayName: normalizedName,
@@ -112,8 +130,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       rank: rank,
       unit: unit,
       phone: phone,
-      currentRole: AppRole.unknown,
-      baseRole: AppRole.unknown,
+      yearLevel: yearLevel,
+      currentRole: baseRole,
+      baseRole: baseRole,
       fcmTokens: const [],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),

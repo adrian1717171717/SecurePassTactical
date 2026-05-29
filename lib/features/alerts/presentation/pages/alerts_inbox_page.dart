@@ -5,17 +5,25 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
+import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-class AlertsInboxPage extends ConsumerWidget {
+class AlertsInboxPage extends ConsumerStatefulWidget {
   const AlertsInboxPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlertsInboxPage> createState() => _AlertsInboxPageState();
+}
+
+class _AlertsInboxPageState extends ConsumerState<AlertsInboxPage> {
+  String _filter = 'all'; // all, unread, incident, novedad
+
+  @override
+  Widget build(BuildContext context) {
     final alertsStream = FirebaseFirestore.instance
         .collection('alerts')
         .orderBy('timestamp', descending: true)
-        .limit(30)
+        .limit(50)
         .snapshots();
 
     return Scaffold(
@@ -58,7 +66,16 @@ class AlertsInboxPage extends ConsumerWidget {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          final docs = snapshot.data?.docs ?? [];
+          final allDocs = snapshot.data?.docs ?? [];
+          
+          final docs = allDocs.where((doc) {
+            final d = doc.data();
+            if (_filter == 'unread') return d['is_read'] == false;
+            if (_filter == 'incident') return d['type'] == 'security_incident' || d['type'] == 'safarancho';
+            if (_filter == 'novedad') return d['type'] == 'part_novedad';
+            return true;
+          }).toList();
+
           if (docs.isEmpty) {
             return Center(
               child: Column(
@@ -71,21 +88,46 @@ class AlertsInboxPage extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final d = docs[index].data();
-              final ts = (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
-              return _AlertTile(
-                type: d['type'] ?? 'general_notice',
-                sender: d['sender'] ?? 'Anónimo',
-                message: d['message'] ?? '',
-                time: ts,
-                isRead: d['is_read'] ?? true,
-              ).animate().fadeIn().slideX(begin: -0.05);
-            },
+          
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    _FilterChip(label: 'TODAS', isSelected: _filter == 'all', onTap: () => setState(() => _filter = 'all')),
+                    const SizedBox(width: 8),
+                    _FilterChip(label: 'NO LEÍDAS', isSelected: _filter == 'unread', onTap: () => setState(() => _filter = 'unread')),
+                    const SizedBox(width: 8),
+                    _FilterChip(label: 'INCIDENTES', isSelected: _filter == 'incident', color: AppColors.alertRed, onTap: () => setState(() => _filter = 'incident')),
+                    const SizedBox(width: 8),
+                    _FilterChip(label: 'NOVEDADES', isSelected: _filter == 'novedad', color: AppColors.statusPending, onTap: () => setState(() => _filter = 'novedad')),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final d = doc.data();
+                    final ts = (d['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+                    return _AlertTile(
+                      id: doc.id,
+                      type: d['type'] ?? 'general_notice',
+                      sender: d['sender'] ?? 'Anónimo',
+                      message: d['message'] ?? '',
+                      time: ts,
+                      isRead: d['is_read'] ?? true,
+                      status: d['status'] ?? 'active',
+                    ).animate().fadeIn().slideX(begin: -0.05);
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -110,19 +152,55 @@ class AlertsInboxPage extends ConsumerWidget {
   }
 }
 
-class _AlertTile extends StatelessWidget {
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _FilterChip({required this.label, required this.isSelected, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = color ?? AppColors.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withOpacity(0.2) : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? activeColor : AppColors.surfaceBorder),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.labelSmall.copyWith(
+            color: isSelected ? activeColor : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlertTile extends ConsumerWidget {
+  final String id;
   final String type;
   final String sender;
   final String message;
   final DateTime time;
   final bool isRead;
+  final String status;
 
   const _AlertTile({
+    required this.id,
     required this.type,
     required this.sender,
     required this.message,
     required this.time,
     required this.isRead,
+    required this.status,
   });
 
   Color get _typeColor {
@@ -153,7 +231,10 @@ class _AlertTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final canManage = user != null && user.currentRole.canApproveVehicles; // Admin, Director can archive/delete
+
     return Container(
       decoration: BoxDecoration(
         color: isRead ? AppColors.surface : AppColors.surfaceElevated,
@@ -184,19 +265,75 @@ class _AlertTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_timeStr, style: AppTextStyles.labelSmall),
-            if (!isRead) ...[
-              const SizedBox(height: 4),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _typeColor,
-                ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(_timeStr, style: AppTextStyles.labelSmall),
+                if (!isRead) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _typeColor,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (canManage) ...[
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted),
+                color: AppColors.surface,
+                onSelected: (action) async {
+                  if (action == 'read') {
+                    await FirebaseFirestore.instance.collection('alerts').doc(id).update({'is_read': true});
+                  } else if (action == 'archive') {
+                    await FirebaseFirestore.instance.collection('alerts').doc(id).update({'status': 'archived'});
+                  } else if (action == 'delete') {
+                    await FirebaseFirestore.instance.collection('alerts').doc(id).delete();
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (!isRead)
+                    const PopupMenuItem(
+                      value: 'read',
+                      child: Row(
+                        children: [
+                          Icon(Icons.mark_email_read_rounded, size: 18, color: AppColors.statusGranted),
+                          SizedBox(width: 8),
+                          Text('Marcar leído'),
+                        ],
+                      ),
+                    ),
+                  if (status != 'archived')
+                    const PopupMenuItem(
+                      value: 'archive',
+                      child: Row(
+                        children: [
+                          Icon(Icons.archive_rounded, size: 18, color: AppColors.statusPending),
+                          SizedBox(width: 8),
+                          Text('Archivar'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.alertRed),
+                        SizedBox(width: 8),
+                        Text('Eliminar'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

@@ -3,14 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
+import '../../../../core/services/stats_service.dart';
+import '../../../../routing/route_names.dart';
 import '../../../auth/domain/entities/app_role.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/access_log_tile.dart';
 import '../widgets/tactical_app_bar.dart';
+import '../widgets/tactical_chart_widget.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -59,6 +63,16 @@ class ControlChiefDashboardPage extends ConsumerWidget {
         title: 'CENTRO DE CONTROL',
         subtitle: userAsync.valueOrNull?.currentRole.displayName.toUpperCase(),
         actions: [
+          // Bitacora filter shortcut
+          IconButton(
+            onPressed: () => context.push(RouteNames.bitacoraFilter),
+            icon: const Icon(
+              Icons.assignment_rounded,
+              color: AppColors.accent,
+              size: 22,
+            ),
+            tooltip: 'Bitácora Avanzada',
+          ),
           // Export report button
           IconButton(
             onPressed: () => _showExportDialog(context),
@@ -97,7 +111,7 @@ class ControlChiefDashboardPage extends ConsumerWidget {
                 .slideY(begin: -0.05, end: 0),
           ),
 
-          // ── Activity bar chart ───────────────────────────
+          // ── Activity dual bar chart ─────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -109,7 +123,7 @@ class ControlChiefDashboardPage extends ConsumerWidget {
                     color: AppColors.accent,
                   ),
                   const SizedBox(height: 14),
-                  _ActivityBarChart(logsAsync: logsAsync),
+                  _DualActivityChart(),
                 ],
               ),
             ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
@@ -350,164 +364,54 @@ class _StatsOverview extends StatelessWidget {
   }
 }
 
-// ── Activity bar chart ─────────────────────────────────────────────────────
+// ── Dual activity chart (peatonal + vehicular) ─────────────────────────────
 
-/// A simple 24-bucket (by-hour) bar chart built entirely with
-/// [Container] widgets — no external chart library required.
-class _ActivityBarChart extends StatelessWidget {
-  final AsyncValue<QuerySnapshot<Map<String, dynamic>>> logsAsync;
-
-  const _ActivityBarChart({required this.logsAsync});
+/// Uses [TacticalBarChart] with two series: pedestrian and vehicular movements.
+/// Data is pulled from [dailyStatsProvider] which already computes per-hour buckets.
+class _DualActivityChart extends ConsumerWidget {
+  const _DualActivityChart();
 
   @override
-  Widget build(BuildContext context) {
-    // Build 24-bucket count map
-    final counts = List<int>.filled(24, 0);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dailyStatsProvider);
 
-    logsAsync.whenData((snap) {
-      for (final doc in snap.docs) {
-        final ts = (doc.data()['timestamp'] as Timestamp?)?.toDate();
-        if (ts != null) counts[ts.hour]++;
-      }
-    });
-
-    final maxCount = counts.reduce((a, b) => a > b ? a : b);
-    final effective = maxCount == 0 ? 1 : maxCount;
-
-    // Only show every 3rd hour label to avoid crowding
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.surfaceBorder),
+    return statsAsync.when(
+      loading: () => const SizedBox(
+        height: 120,
+        child: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       ),
-      child: Column(
-        children: [
-          // Bars
-          SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(24, (hour) {
-                final count = counts[hour];
-                final ratio = count / effective;
-                final isCurrentHour =
-                    DateTime.now().hour == hour;
-                final barColor = isCurrentHour
-                    ? AppColors.accent
-                    : AppColors.primary;
+      error: (e, _) => _ControlErrorBanner(message: 'Error al cargar gráfico: $e'),
+      data: (stats) {
+        // Build 24-bucket arrays from per-type hourly breakdowns in DailyStats
+        final pedestrian = List<int>.filled(24, 0);
+        final vehicular = List<int>.filled(24, 0);
 
-                return Expanded(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 1),
-                    child: Tooltip(
-                      message: '${hour.toString().padLeft(2, '0')}h: $count eventos',
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (count > 0)
-                            Text(
-                              count.toString(),
-                              style: AppTextStyles.labelSmall.copyWith(
-                                fontSize: 7,
-                                color: barColor.withOpacity(0.8),
-                              ),
-                            ),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 600),
-                            curve: Curves.easeOutCubic,
-                            height: (ratio * 80).clamp(2.0, 80.0),
-                            decoration: BoxDecoration(
-                              color: barColor.withOpacity(
-                                  isCurrentHour ? 1.0 : 0.6),
-                              borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(3)),
-                              boxShadow: isCurrentHour
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.accentGlow,
-                                        blurRadius: 8,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
+        for (final entry in stats.activityByHourPedestrian.entries) {
+          pedestrian[entry.key.clamp(0, 23)] = entry.value;
+        }
+        for (final entry in stats.activityByHourVehicular.entries) {
+          vehicular[entry.key.clamp(0, 23)] = entry.value;
+        }
+
+        return TacticalBarChart(
+          height: 120,
+          series: [
+            ChartSeries(
+              label: 'Peatonal',
+              color: AppColors.primary,
+              hourlyData: pedestrian,
             ),
-          ),
-
-          const SizedBox(height: 6),
-
-          // Hour labels (every 3 hours)
-          Row(
-            children: List.generate(24, (hour) {
-              final showLabel = hour % 3 == 0;
-              return Expanded(
-                child: Text(
-                  showLabel ? '${hour.toString().padLeft(2, '0')}' : '',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    fontSize: 8,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              );
-            }),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _ChartLegendDot(
-                  color: AppColors.primary, label: 'Eventos'),
-              const SizedBox(width: 16),
-              _ChartLegendDot(
-                  color: AppColors.accent, label: 'Hora actual'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChartLegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _ChartLegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall.copyWith(
-            fontSize: 10,
-            color: AppColors.textMuted,
-          ),
-        ),
-      ],
+            ChartSeries(
+              label: 'Vehicular',
+              color: AppColors.statusGranted,
+              hourlyData: vehicular,
+            ),
+          ],
+          emptyMessage: 'Sin movimientos registrados hoy',
+        );
+      },
     );
   }
 }

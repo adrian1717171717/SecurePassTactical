@@ -21,21 +21,23 @@ class MyQrPage extends ConsumerStatefulWidget {
 class _MyQrPageState extends ConsumerState<MyQrPage> {
   String _qrData = '';
   Timer? _rotationTimer;
-  int _secondsUntilRefresh = AppConfig.qrRotationSeconds;
+  DateTime? _generatedAt;
+  int _secondsUntilRefresh = 86400; // 24 hours in seconds
 
   @override
   void initState() {
     super.initState();
     _generateQr();
-    // Auto-rotate QR every qrRotationSeconds
+    // Countdown to 24h expiration
     _rotationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
+      if (_generatedAt == null) return;
+      
+      final elapsed = DateTime.now().difference(_generatedAt!).inSeconds;
+      final remaining = 86400 - elapsed;
+      
       setState(() {
-        _secondsUntilRefresh--;
-        if (_secondsUntilRefresh <= 0) {
-          _generateQr();
-          _secondsUntilRefresh = AppConfig.qrRotationSeconds;
-        }
+        _secondsUntilRefresh = remaining > 0 ? remaining : 0;
       });
     });
   }
@@ -43,7 +45,11 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
   void _generateQr() {
     final uid = ref.read(currentUserProvider).valueOrNull?.uid ?? '';
     if (uid.isEmpty) return;
-    setState(() => _qrData = QrTokenGenerator.generate(uid));
+    setState(() {
+      _generatedAt = DateTime.now();
+      _secondsUntilRefresh = 86400;
+      _qrData = QrTokenGenerator.generate(uid);
+    });
   }
 
   @override
@@ -180,62 +186,96 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
               const SizedBox(height: 16),
 
               // ── Rotation Timer ─────────────────────────
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.surfaceBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.refresh_rounded,
-                        size: 14,
-                        color: _secondsUntilRefresh <= 10
-                            ? AppColors.statusPending
-                            : AppColors.textMuted),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Renovación en ${_secondsUntilRefresh}s',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: _secondsUntilRefresh <= 10
-                            ? AppColors.statusPending
-                            : AppColors.textMuted,
-                        letterSpacing: 1,
+              if (_secondsUntilRefresh > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.surfaceBorder),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_outlined,
+                          size: 14,
+                          color: _secondsUntilRefresh <= 3600
+                              ? AppColors.alertRed
+                              : AppColors.textMuted),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Expira en ${_formatDuration(Duration(seconds: _secondsUntilRefresh))}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: _secondsUntilRefresh <= 3600
+                              ? AppColors.alertRed
+                              : AppColors.textMuted,
+                          letterSpacing: 1,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: _generateQr,
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                  label: const Text('RENOVAR CÓDIGO (VENCIDO)'),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.alertRed),
                 ),
-              ),
 
               const SizedBox(height: 16),
 
               // ── Credencial Diaria Válida ──────────────────
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.statusGranted.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.statusGranted.withOpacity(0.4)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.verified_user_rounded,
-                        color: AppColors.statusGranted, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'CREDENCIAL ACTIVA',
-                      style: AppTextStyles.labelMedium.copyWith(
-                        color: AppColors.statusGranted,
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.bold,
+              if (_secondsUntilRefresh > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.statusGranted.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.statusGranted.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_user_rounded,
+                          color: AppColors.statusGranted, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'CREDENCIAL ACTIVA',
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: AppColors.statusGranted,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.alertRed.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.alertRed.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.gpp_bad_rounded,
+                          color: AppColors.alertRed, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'CREDENCIAL VENCIDA',
+                        style: AppTextStyles.labelMedium.copyWith(
+                          color: AppColors.alertRed,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 28),
 
@@ -263,8 +303,8 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
                     const SizedBox(height: 8),
                     Text(
                       '• Presente este QR al Brigadier o Cadete de Guardia\n'
-                      '• El código se renueva automáticamente cada ${AppConfig.qrRotationSeconds} segundos\n'
-                      '• Funciona sin conexión a internet\n'
+                      '• El código es válido exactamente por 24 horas\n'
+                      '• Funciona sin conexión a internet durante su vigencia\n'
                       '• No comparta una captura de pantalla — no será válida',
                       style: AppTextStyles.bodySmall.copyWith(height: 1.8),
                     ),
@@ -277,5 +317,12 @@ class _MyQrPageState extends ConsumerState<MyQrPage> {
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+    return "${twoDigits(d.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 }

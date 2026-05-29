@@ -141,7 +141,18 @@ class _GuardOfficerDashboardPageState
             ),
             tooltip: 'Mi Identidad / QR',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          // Bitacora avanzada
+          IconButton(
+            onPressed: () => context.push(RouteNames.bitacoraFilter),
+            icon: const Icon(
+              Icons.assignment_rounded,
+              color: AppColors.accent,
+              size: 22,
+            ),
+            tooltip: 'Bitácora Avanzada',
+          ),
+          const SizedBox(width: 4),
           // Quick Scanner access for testing
           IconButton(
             onPressed: () => context.push(RouteNames.scanner),
@@ -152,7 +163,7 @@ class _GuardOfficerDashboardPageState
             ),
             tooltip: 'Probar Escáner',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             onPressed: () async {
               await ref.read(signOutProvider)(context);
@@ -936,83 +947,86 @@ class _ImaginariaCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Cabecera
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isOverdue 
-                          ? AppColors.alertRed.withOpacity(0.12)
-                          : AppColors.primaryGlow,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.book_rounded,
-                      color: isOverdue ? AppColors.alertRed : AppColors.primaryLight,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'LIBRO DE IMAGINARIA DIGITAL',
-                          style: AppTextStyles.labelMedium.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          lastReportTime != null 
-                              ? 'Último reporte hace $minutesSinceLastReport min'
-                              : 'Sin reportes cargados hoy',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Indicador de Alerta
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isOverdue 
-                          ? AppColors.alertRed.withOpacity(0.15)
-                          : AppColors.statusGranted.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
+              GestureDetector(
+                onTap: () => context.push('/bitacora/history'),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
                         color: isOverdue 
-                            ? AppColors.alertRed.withOpacity(0.4)
-                            : AppColors.statusGranted.withOpacity(0.4),
-                        width: 0.5,
+                            ? AppColors.alertRed.withOpacity(0.12)
+                            : AppColors.primaryGlow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.book_rounded,
+                        color: isOverdue ? AppColors.alertRed : AppColors.primaryLight,
+                        size: 20,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isOverdue ? Icons.warning_amber_rounded : Icons.verified_user_rounded,
-                          color: isOverdue ? AppColors.alertRed : AppColors.statusGranted,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isOverdue ? 'REPORTE PENDIENTE' : 'SERVICIO AL DÍA',
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: isOverdue ? AppColors.alertRed : AppColors.statusGranted,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LIBRO DE IMAGINARIA DIGITAL',
+                            style: AppTextStyles.labelMedium.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            lastReportTime != null 
+                                ? 'Último reporte hace $minutesSinceLastReport min'
+                                : 'Sin reportes cargados hoy',
+                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                      .animate(onPlay: (c) => isOverdue ? c.repeat() : c.stop())
-                      .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.1)),
-                ],
+                    // Indicador de Alerta
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isOverdue 
+                            ? AppColors.alertRed.withOpacity(0.15)
+                            : AppColors.statusGranted.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isOverdue 
+                              ? AppColors.alertRed.withOpacity(0.4)
+                              : AppColors.statusGranted.withOpacity(0.4),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isOverdue ? Icons.warning_amber_rounded : Icons.verified_user_rounded,
+                            color: isOverdue ? AppColors.alertRed : AppColors.statusGranted,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isOverdue ? 'REPORTE PENDIENTE' : 'SERVICIO AL DÍA',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: isOverdue ? AppColors.alertRed : AppColors.statusGranted,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                        .animate(onPlay: (c) => isOverdue ? c.repeat() : c.stop())
+                        .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.1)),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
 

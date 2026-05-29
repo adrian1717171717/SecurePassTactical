@@ -279,15 +279,33 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
 
     String selectedRole = user['current_role'] ?? 'unknown';
     String selectedHierarchy = user['base_role'] ?? 'unknown';
-    String selectedCompany = user['unit'] ?? _companies.first;
-    String selectedCourse = user['rank'] ?? _courses.first;
+    String selectedCompany = user['unit'] ?? (_companies.isNotEmpty ? _companies.first : '—');
+    String selectedCourse = user['rank'] ?? 'ICM';
+    String? selectedServiceBranch = user['service_branch'];
 
-    // Asegurar que los valores existan en las listas, si no añadirlos temporalmente
+    List<String> getDynamicRanks(String hierarchy) {
+      switch (hierarchy) {
+        case 'Oficial':
+          return ['Subteniente', 'Teniente', 'Capitán', 'Mayor', 'Teniente Coronel', 'Coronel', 'General'];
+        case 'Voluntario':
+          return ['Soldado', 'Cabo Segundo', 'Cabo Primero', 'Sargento Segundo', 'Sargento Primero', 'Suboficial Segundo', 'Suboficial Primero', 'Suboficial Mayor'];
+        case 'unknown': // Cadete
+          return ['ICM', 'IICM', 'IIICM', 'IVCM'];
+        case 'Servidor Público':
+        case 'Otro':
+        default:
+          return ['Ninguno', 'Civil', 'Analista', 'Especialista', 'Técnico', 'Otro'];
+      }
+    }
+
+    List<String> currentRanks = getDynamicRanks(selectedHierarchy);
+    if (!currentRanks.contains(selectedCourse)) {
+      currentRanks.add(selectedCourse); // Keep old valid value to avoid crash initially
+    }
+
+    // Asegurar que los valores existan en las listas
     if (!_companies.contains(selectedCompany)) {
       _companies.add(selectedCompany);
-    }
-    if (!_courses.contains(selectedCourse)) {
-      _courses.add(selectedCourse);
     }
 
     showModalBottomSheet(
@@ -382,7 +400,11 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                       ],
                       onChanged: (val) {
                         if (val != null) {
-                          setModalState(() => selectedHierarchy = val);
+                          setModalState(() {
+                            selectedHierarchy = val;
+                            currentRanks = getDynamicRanks(val);
+                            selectedCourse = currentRanks.first;
+                          });
                         }
                       },
                     ),
@@ -413,8 +435,8 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                       value: selectedCourse,
                       dropdownColor: AppColors.surface,
                       style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Curso / Subgrupo (Rango)'),
-                      items: _courses.map((course) {
+                      decoration: const InputDecoration(labelText: 'Grado / Rango'),
+                      items: currentRanks.map((course) {
                         return DropdownMenuItem(
                           value: course,
                           child: Text(course),
@@ -426,6 +448,30 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                         }
                       },
                     ),
+                    
+                    if (selectedHierarchy == 'Oficial' || selectedHierarchy == 'Voluntario') ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedServiceBranch ?? 'Infantería',
+                        dropdownColor: AppColors.surface,
+                        style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                        decoration: const InputDecoration(labelText: 'Arma de Servicio'),
+                        items: const [
+                          DropdownMenuItem(value: 'Infantería', child: Text('Infantería')),
+                          DropdownMenuItem(value: 'Caballería', child: Text('Caballería Blindada')),
+                          DropdownMenuItem(value: 'Artillería', child: Text('Artillería')),
+                          DropdownMenuItem(value: 'Ingenieros', child: Text('Ingenieros')),
+                          DropdownMenuItem(value: 'Comunicaciones', child: Text('Comunicaciones')),
+                          DropdownMenuItem(value: 'Inteligencia', child: Text('Inteligencia Militar')),
+                          DropdownMenuItem(value: 'Aviación', child: Text('Aviación del Ejército')),
+                          DropdownMenuItem(value: 'Especialista', child: Text('Especialista / Servicios')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setModalState(() => selectedServiceBranch = val);
+                        },
+                      ),
+                    ],
+
                     const SizedBox(height: 28),
 
                     // Botón Guardar Cambios
@@ -451,6 +497,7 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                               'base_role': selectedHierarchy,
                               'unit': selectedCompany,
                               'rank': selectedCourse,
+                              'service_branch': (selectedHierarchy == 'Oficial' || selectedHierarchy == 'Voluntario') ? (selectedServiceBranch ?? 'Infantería') : null,
                               'updated_at': Timestamp.now(),
                             });
                             if (context.mounted) {

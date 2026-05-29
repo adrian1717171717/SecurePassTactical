@@ -8,10 +8,9 @@ import '../config/app_config.dart';
 class QrTokenGenerator {
   QrTokenGenerator._();
 
-  /// Calcula la ventana temporal actual (diaria: AAAAMMDD)
+  /// Calcula la ventana temporal actual (timestamp en segundos)
   static int currentWindow() {
-    final now = DateTime.now();
-    return now.year * 10000 + now.month * 100 + now.day;
+    return DateTime.now().millisecondsSinceEpoch ~/ 1000;
   }
 
   /// Genera el HMAC para una combinación uid + window
@@ -33,21 +32,20 @@ class QrTokenGenerator {
   }
 
   /// Valida un token QR escaneado.
-  /// Acepta el día actual y el anterior (1 día de tolerancia por husos horarios).
+  /// Verifica que el token no tenga más de 24 horas (86400 segundos) de antigüedad.
   static bool validate({
     required String uid,
     required int window,
     required String token,
   }) {
     final now = currentWindow();
-    // Tolerancia de hoy y ayer
-    for (int delta = 0; delta <= 1; delta++) {
-      final candidate = _computeHmac(uid, now - delta);
-      if (candidate == token) {
-        return true;
-      }
+    // 86400 segundos = 24 horas exactas
+    if (now - window > 86400 || now < window) {
+      return false; // Expirado o fecha futura inválida
     }
-    return false;
+    
+    final candidate = _computeHmac(uid, window);
+    return candidate == token;
   }
 
   /// Genera el payload para un QR de sticker vehicular
@@ -59,10 +57,8 @@ class QrTokenGenerator {
     return 'VH:$plate:$stickerSerial';
   }
 
-  /// Segundos restantes hasta la medianoche (siguiente rotación diaria)
+  /// Segundos de validez total de un QR recién generado
   static int secondsUntilRotation() {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    return tomorrow.difference(now).inSeconds;
+    return 86400; // 24 horas
   }
 }

@@ -81,6 +81,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
       String? scannedCedula;
       String? scannedUnit;
       bool isValid = false;
+      bool isDuplicateState = false;
       String? errorMessage;
       String? matchedUid;
 
@@ -134,9 +135,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
 
           if (_mode == 'entry' && movementState == 'ADENTRO') {
             isValid = false;
+            isDuplicateState = true;
             errorMessage = 'ERROR: Usuario ya se encuentra dentro de la instalación';
           } else if (_mode == 'exit' && movementState == 'AFUERA') {
             isValid = false;
+            isDuplicateState = true;
             errorMessage = 'ERROR: Usuario ya se encuentra fuera de la instalación';
           } else {
             isValid = true;
@@ -165,32 +168,35 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         }
       });
 
-      // Guardar log en Firestore con datos completos de trazabilidad
-      await _logAccess(
-        personName: personName,
-        rank: personRank,
-        eventType: eventType,
-        accessResult: accessResult,
-        vehiclePlate: vehiclePlate,
-        uid: scannedUid,
-        cedula: scannedCedula,
-        unit: scannedUnit,
-        operatorUid: operatorUid,
-        operatorName: operatorName,
-        operatorRole: operatorRole,
-      );
+      // Guardar log en Firestore con datos completos de trazabilidad (solo si no es un escaneo duplicado)
+      if (!isDuplicateState) {
+        await _logAccess(
+          personName: personName,
+          rank: personRank,
+          eventType: eventType,
+          accessResult: accessResult,
+          vehiclePlate: vehiclePlate,
+          uid: scannedUid,
+          cedula: scannedCedula,
+          unit: scannedUnit,
+          operatorUid: operatorUid,
+          operatorName: operatorName,
+          operatorRole: operatorRole,
+          errorMessage: errorMessage,
+        );
 
-      // Registrar auditoría
-      AuditService.logAccessScan(
-        operatorUid: operatorUid,
-        operatorName: operatorName,
-        operatorRole: operatorRole,
-        scannedUid: scannedUid ?? 'external',
-        scannedName: personName,
-        eventType: eventType,
-        result: accessResult,
-        vehiclePlate: vehiclePlate,
-      );
+        // Registrar auditoría
+        AuditService.logAccessScan(
+          operatorUid: operatorUid,
+          operatorName: operatorName,
+          operatorRole: operatorRole,
+          scannedUid: scannedUid ?? 'external',
+          scannedName: personName,
+          eventType: eventType,
+          result: accessResult,
+          vehiclePlate: vehiclePlate,
+        );
+      }
 
       // Auto-reset después de 2.5s
       _resetTimer = Timer(const Duration(milliseconds: 2500), () {
@@ -224,6 +230,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
     required String operatorUid,
     required String operatorName,
     required String operatorRole,
+    String? errorMessage,
   }) async {
     try {
       await FirebaseFirestore.instance.collection('access_logs').add({
@@ -240,6 +247,17 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
         'operator_name': operatorName,
         'operator_role': operatorRole,
       });
+
+      if (accessResult == 'denied') {
+        await FirebaseFirestore.instance.collection('alerts').add({
+          'type': 'security_incident',
+          'sender': 'ESCÁNER AUTOMÁTICO',
+          'message': 'Intento de acceso denegado. $personName ($rank). Razón: ${errorMessage ?? "Desconocida"}',
+          'timestamp': FieldValue.serverTimestamp(),
+          'is_read': false,
+          'is_emergency': true,
+        });
+      }
     } catch (e) {
       debugPrint('Error al guardar log de acceso: $e');
     }
@@ -549,6 +567,7 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
           String rank = isPlate ? 'Placa Manual' : 'Cédula Manual';
           String? errorMessage;
           bool isManualValid = true;
+          bool isDuplicateState = false;
 
           if (!isPlate) {
             // Es una cédula, buscar si existe un usuario registrado con esa cédula
@@ -566,9 +585,11 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
 
               if (_mode == 'entry' && movementState == 'ADENTRO') {
                 isManualValid = false;
+                isDuplicateState = true;
                 errorMessage = 'ERROR: Usuario ya se encuentra dentro de la instalación';
               } else if (_mode == 'exit' && movementState == 'AFUERA') {
                 isManualValid = false;
+                isDuplicateState = true;
                 errorMessage = 'ERROR: Usuario ya se encuentra fuera de la instalación';
               } else {
                 isManualValid = true;
@@ -594,17 +615,20 @@ class _ScannerPageState extends ConsumerState<ScannerPage> {
             }
           });
 
-          final op = ref.read(currentUserProvider).valueOrNull;
-          await _logAccess(
-            personName: personName,
-            rank: rank,
-            eventType: eventType,
-            accessResult: accessResult,
-            vehiclePlate: isPlate ? value : null,
-            operatorUid: op?.uid ?? '',
-            operatorName: op?.displayName ?? 'Operador',
-            operatorRole: op?.currentRole.toFirestoreString() ?? 'unknown',
-          );
+          if (!isDuplicateState) {
+            final op = ref.read(currentUserProvider).valueOrNull;
+            await _logAccess(
+              personName: personName,
+              rank: rank,
+              eventType: eventType,
+              accessResult: accessResult,
+              vehiclePlate: isPlate ? value : null,
+              operatorUid: op?.uid ?? '',
+              operatorName: op?.displayName ?? 'Operador',
+              operatorRole: op?.currentRole.toFirestoreString() ?? 'unknown',
+              errorMessage: errorMessage,
+            );
+          }
 
           _resetTimer = Timer(const Duration(milliseconds: 2500), () {
             if (mounted) {

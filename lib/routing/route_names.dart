@@ -11,6 +11,8 @@ class RouteNames {
   // ── Guardia ──────────────────────────────────────────────
   static const String shiftHandoff = '/shift/handoff';
   static const String shiftSummary = '/shift/summary';
+  static const String bitacoraHistory = '/bitacora/history';
+  static const String bitacoraFilter = '/bitacora/filter';
 
   // ── QR Personal ──────────────────────────────────────────
   static const String myQr = '/my-qr';

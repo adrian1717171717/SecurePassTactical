@@ -13,6 +13,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/access_log_tile.dart';
 import '../widgets/tactical_app_bar.dart';
+import '../widgets/tactical_chart_widget.dart';
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
@@ -180,7 +181,15 @@ class _AdminBody extends ConsumerWidget {
           ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.05, end: 0),
         ),
 
-        // ── Section header ─────────────────────────────────
+        // ── Activity chart ───────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: _AdminActivityChart(),
+          ).animate().fadeIn(delay: 180.ms, duration: 400.ms),
+        ),
+
+        // ── Section header ───────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -523,3 +532,79 @@ class _ErrorBanner extends StatelessWidget {
     );
   }
 }
+
+// ── Admin Activity Chart ────────────────────────────────────────────────────
+
+/// Gráfico táctico de actividad diaria para el dashboard de administración.
+/// Muestra dos series: movimientos peatonales y vehiculares por hora.
+class _AdminActivityChart extends ConsumerWidget {
+  const _AdminActivityChart();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dailyStatsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 14,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'ACTIVIDAD POR HORA (HOY)',
+              style: AppTextStyles.labelMedium.copyWith(
+                color: AppColors.primary,
+                letterSpacing: 2.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        statsAsync.when(
+          loading: () => const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          error: (e, _) => const SizedBox.shrink(),
+          data: (stats) {
+            final pedestrian = List<int>.filled(24, 0);
+            final vehicular = List<int>.filled(24, 0);
+
+            for (final entry in stats.activityByHourPedestrian.entries) {
+              pedestrian[entry.key.clamp(0, 23)] = entry.value;
+            }
+            for (final entry in stats.activityByHourVehicular.entries) {
+              vehicular[entry.key.clamp(0, 23)] = entry.value;
+            }
+
+            return TacticalBarChart(
+              height: 100,
+              series: [
+                ChartSeries(
+                  label: 'Peatonal',
+                  color: AppColors.primary,
+                  hourlyData: pedestrian,
+                ),
+                ChartSeries(
+                  label: 'Vehicular',
+                  color: AppColors.statusGranted,
+                  hourlyData: vehicular,
+                ),
+              ],
+              emptyMessage: 'Sin actividad hoy',
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+

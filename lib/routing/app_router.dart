@@ -11,9 +11,13 @@ import '../features/qr_identity/presentation/pages/my_qr_page.dart';
 import '../features/alerts/presentation/pages/alerts_inbox_page.dart';
 import '../features/guard_shift/presentation/pages/handoff_page.dart';
 import '../features/guard_shift/presentation/pages/shift_summary_page.dart';
+import '../features/guard_shift/presentation/pages/bitacora_history_page.dart';
+import '../features/guard_shift/presentation/pages/bitacora_filter_page.dart';
 import '../features/dashboard/presentation/pages/admin_users_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/vehicles/presentation/pages/vehicles_page.dart';
+import '../features/reports/presentation/pages/reports_page.dart';
+import '../features/auth/domain/entities/role_permissions.dart';
 import 'route_names.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -130,6 +134,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) {
           final role = userAsync.valueOrNull?.currentRole;
           if (role == null || !role.canManageUsers) {
+            return RouteNames.dashboard;
+          }
+          return null;
+        },
+      ),
+
+      // ── Admin: Reportes ────────────────────────────────
+      GoRoute(
+        path: RouteNames.adminReports,
+        name: 'adminReports',
+        builder: (_, __) => const ReportsPage(),
+        redirect: (context, state) {
+          final role = userAsync.valueOrNull?.currentRole;
+          if (role == null || role.securityLevel.index > SecurityLevel.level3OperationalCommand.index) {
+            return RouteNames.dashboard;
+          }
+          return null;
+        },
+      ),
+
+      // ── Bitácora: Historial ───────────────────────────────────
+      GoRoute(
+        path: RouteNames.bitacoraHistory,
+        name: 'bitacoraHistory',
+        builder: (_, __) => const BitacoraHistoryPage(),
+        redirect: (context, state) {
+          final role = userAsync.valueOrNull?.currentRole;
+          if (role == null || !role.canCloseShift) {
+            return RouteNames.dashboard;
+          }
+          return null;
+        },
+      ),
+
+      // ── Bitácora: Filtro Avanzado ─────────────────────────────
+      GoRoute(
+        path: RouteNames.bitacoraFilter,
+        name: 'bitacoraFilter',
+        builder: (_, __) => const BitacoraFilterPage(),
+        redirect: (context, state) {
+          final role = userAsync.valueOrNull?.currentRole;
+          // Accesible para roles que pueden cerrar guardia o son Jefe de Control
+          if (role == null ||
+              (!role.canCloseShift && !role.canManageUsers)) {
             return RouteNames.dashboard;
           }
           return null;

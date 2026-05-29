@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/config/theme/app_colors.dart';
 import '../../../../core/config/theme/app_text_styles.dart';
 import '../../../../core/services/audit_service.dart';
@@ -22,6 +23,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _cedulaCtrl = TextEditingController();
+  String _gender = 'Sin especificar';
   bool _isEditing = false;
   bool _isSaving = false;
 
@@ -34,8 +36,97 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _nameCtrl.text = user.displayName;
         _phoneCtrl.text = user.phone ?? '';
         _cedulaCtrl.text = user.cedula;
+        setState(() => _gender = user.gender ?? 'Sin especificar');
       }
     });
+  }
+
+  Future<void> _showPasswordDialog() async {
+    final auth = FirebaseAuth.instance;
+    if (auth.currentUser == null) return;
+
+    final currentPwCtrl = TextEditingController();
+    final newPwCtrl = TextEditingController();
+    final confirmPwCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSavingPw = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text('Cambiar Contraseña', style: AppTextStyles.headlineSmall),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: currentPwCtrl,
+                  obscureText: true,
+                  style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Contraseña Actual'),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: newPwCtrl,
+                  obscureText: true,
+                  style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Nueva Contraseña'),
+                  validator: (v) => (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmPwCtrl,
+                  obscureText: true,
+                  style: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Confirmar Nueva Contraseña'),
+                  validator: (v) => v != newPwCtrl.text ? 'No coincide' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSavingPw ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isSavingPw ? null : () async {
+                if (!formKey.currentState!.validate()) return;
+                setModalState(() => isSavingPw = true);
+                try {
+                  final cred = EmailAuthProvider.credential(
+                    email: auth.currentUser!.email!,
+                    password: currentPwCtrl.text,
+                  );
+                  await auth.currentUser!.reauthenticateWithCredential(cred);
+                  await auth.currentUser!.updatePassword(newPwCtrl.text);
+                  
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Contraseña actualizada correctamente'), backgroundColor: AppColors.statusGranted),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  setModalState(() => isSavingPw = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.message}'), backgroundColor: AppColors.alertRed),
+                  );
+                }
+              },
+              child: isSavingPw
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Cambiar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -69,6 +160,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (_cedulaCtrl.text.trim() != user.cedula) {
         changes['cedula'] = _cedulaCtrl.text.trim();
         changedFields.add('cedula');
+      }
+      if (_gender != (user.gender ?? 'Sin especificar')) {
+        changes['gender'] = _gender;
+        changedFields.add('gender');
       }
 
       if (changedFields.isNotEmpty) {
@@ -247,6 +342,52 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   enabled: false,
                 ),
               ],
+              if (user.serviceBranch != null && user.serviceBranch!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildField(
+                  label: 'Arma de Servicio',
+                  icon: Icons.military_tech_rounded,
+                  value: user.serviceBranch!,
+                  enabled: false,
+                ),
+              ],
+              const SizedBox(height: 12),
+              
+              // Campo Género
+              DropdownButtonFormField<String>(
+                value: _gender,
+                dropdownColor: AppColors.surface,
+                iconEnabledColor: AppColors.primary,
+                style: AppTextStyles.bodyLarge.copyWith(color: _isEditing ? Colors.white : AppColors.textSecondary),
+                decoration: InputDecoration(
+                  labelText: 'Género',
+                  prefixIcon: const Icon(Icons.wc_rounded, color: AppColors.textMuted, size: 20),
+                  filled: true,
+                  fillColor: _isEditing ? AppColors.surface : AppColors.surfaceElevated,
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+                  DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
+                  DropdownMenuItem(value: 'Sin especificar', child: Text('Sin especificar')),
+                ],
+                onChanged: _isEditing ? (val) => setState(() => _gender = val ?? 'Sin especificar') : null,
+              ),
+
+              if (!_isEditing) ...[
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _showPasswordDialog,
+                    icon: const Icon(Icons.lock_reset_rounded, color: AppColors.primary),
+                    label: const Text('CAMBIAR CONTRASEÑA', style: TextStyle(color: AppColors.primary)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
 
@@ -260,6 +401,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           _nameCtrl.text = user.displayName;
                           _phoneCtrl.text = user.phone ?? '';
                           _cedulaCtrl.text = user.cedula;
+                          _gender = user.gender ?? 'Sin especificar';
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textSecondary,

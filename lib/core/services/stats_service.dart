@@ -36,6 +36,8 @@ class StatsService {
     int totalPedestrianMovements = 0;
     final Map<int, int> activityByHour = {};
     final Map<String, int> activityByUnit = {};
+    final Map<int, int> activityByHourPedestrian = {};
+    final Map<int, int> activityByHourVehicular = {};
 
     // Track who is currently inside (latest movement per uid)
     final Map<String, String> latestMovementByUid = {};
@@ -88,9 +90,16 @@ class StatsService {
         }
       }
 
-      // Activity by hour
+      // Activity by hour (total + split)
       if (ts != null) {
         activityByHour[ts.hour] = (activityByHour[ts.hour] ?? 0) + 1;
+        if (isVehicular) {
+          activityByHourVehicular[ts.hour] =
+              (activityByHourVehicular[ts.hour] ?? 0) + 1;
+        } else {
+          activityByHourPedestrian[ts.hour] =
+              (activityByHourPedestrian[ts.hour] ?? 0) + 1;
+        }
       }
 
       // Activity by unit
@@ -118,6 +127,8 @@ class StatsService {
       totalMovements: docs.length,
       activityByHour: activityByHour,
       activityByUnit: activityByUnit,
+      activityByHourPedestrian: activityByHourPedestrian,
+      activityByHourVehicular: activityByHourVehicular,
     );
   }
 }
@@ -136,6 +147,8 @@ class DailyStats {
   final int totalMovements;
   final Map<int, int> activityByHour;
   final Map<String, int> activityByUnit;
+  final Map<int, int> activityByHourPedestrian;
+  final Map<int, int> activityByHourVehicular;
 
   const DailyStats({
     required this.uniquePersons,
@@ -150,6 +163,8 @@ class DailyStats {
     required this.totalMovements,
     required this.activityByHour,
     required this.activityByUnit,
+    required this.activityByHourPedestrian,
+    required this.activityByHourVehicular,
   });
 
   static const empty = DailyStats(
@@ -165,6 +180,8 @@ class DailyStats {
     totalMovements: 0,
     activityByHour: {},
     activityByUnit: {},
+    activityByHourPedestrian: {},
+    activityByHourVehicular: {},
   );
 }
 
